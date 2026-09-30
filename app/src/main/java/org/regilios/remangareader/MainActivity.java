@@ -10,6 +10,7 @@ import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.View;
 import android.view.WindowManager;
@@ -52,6 +53,10 @@ public final class MainActivity extends ComponentActivity {
     private WebView webView;
     private LinearLayout root;
     private LinearLayout toolbar;
+    private LinearLayout navigation;
+    private TextView address;
+    private Button backButton;
+    private Button forwardButton;
     private LinearLayout errorPanel;
     private ProgressBar progress;
     private TextView errorText;
@@ -112,15 +117,30 @@ public final class MainActivity extends ComponentActivity {
         root.setBackgroundColor(Color.rgb(17, 17, 21));
 
         toolbar = new LinearLayout(this);
-        toolbar.setGravity(Gravity.CENTER_VERTICAL);
-        toolbar.addView(button("Главная", () -> webView.loadUrl(UrlPolicy.HOME)));
-        toolbar.addView(button("Ссылка", this::askForLink));
-        toolbar.addView(button("Обновить", () -> webView.reload()));
+        toolbar.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout addressRow = new LinearLayout(this);
+        addressRow.setGravity(Gravity.CENTER_VERTICAL);
+        address = new TextView(this);
+        address.setTextColor(Color.WHITE);
+        address.setTextSize(14);
+        address.setSingleLine(true);
+        address.setEllipsize(TextUtils.TruncateAt.MIDDLE);
+        address.setGravity(Gravity.CENTER_VERTICAL);
+        address.setPadding(dp(12), 0, dp(8), 0);
+        address.setContentDescription("Адрес страницы. Нажмите, чтобы открыть другую ссылку");
+        address.setOnClickListener(view -> askForLink());
+        addressRow.addView(address, new LinearLayout.LayoutParams(0, dp(48), 1));
+        Button reload = button("↻", () -> webView.reload());
+        reload.setContentDescription("Обновить страницу");
+        addressRow.addView(reload, new LinearLayout.LayoutParams(dp(52), dp(48)));
+        toolbar.addView(addressRow);
         root.addView(toolbar);
 
         progress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         progress.setMax(100);
-        root.addView(progress, new LinearLayout.LayoutParams(-1, dp(2)));
+        progress.setVisibility(View.INVISIBLE);
+        // Reserve its height so progress updates never resize the reading viewport.
+        toolbar.addView(progress, new LinearLayout.LayoutParams(-1, dp(2)));
 
         errorPanel = new LinearLayout(this);
         errorPanel.setOrientation(LinearLayout.VERTICAL);
@@ -136,6 +156,23 @@ public final class MainActivity extends ComponentActivity {
         webView = new WebView(this);
         webView.setBackgroundColor(Color.rgb(17, 17, 21));
         root.addView(webView, new LinearLayout.LayoutParams(-1, 0, 1));
+        navigation = new LinearLayout(this);
+        navigation.setGravity(Gravity.CENTER_VERTICAL);
+        backButton = button("Назад", this::handleBack);
+        forwardButton = button("Вперёд", () -> {
+            if (webView.canGoForward()) webView.goForward();
+        });
+        Button homeButton = button("Главная", () -> webView.loadUrl(UrlPolicy.HOME));
+        Button chromeButton = button("Chrome", () -> openExternal(Uri.parse(currentUrl)));
+        chromeButton.setContentDescription("Открыть текущую страницу в Chrome");
+        for (Button control : new Button[]{backButton, forwardButton, homeButton, chromeButton}) {
+            control.setTextSize(12);
+            control.setMinWidth(0);
+            control.setMinimumWidth(0);
+            control.setPadding(dp(2), 0, dp(2), 0);
+            navigation.addView(control, new LinearLayout.LayoutParams(0, dp(48), 1));
+        }
+        root.addView(navigation);
         setContentView(root);
 
         ViewCompat.setOnApplyWindowInsetsListener(root, (view, windowInsets) -> {
@@ -197,7 +234,7 @@ public final class MainActivity extends ComponentActivity {
             @Override
             public void onProgressChanged(WebView view, int value) {
                 progress.setProgress(value);
-                progress.setVisibility(value == 100 || fullscreen ? View.GONE : View.VISIBLE);
+                progress.setVisibility(value == 100 ? View.INVISIBLE : View.VISIBLE);
             }
         });
         webView.setWebViewClient(new WebViewClient() {
@@ -229,6 +266,7 @@ public final class MainActivity extends ComponentActivity {
 
             @Override
             public void onPageFinished(WebView view, String url) {
+                updateReaderUi(url);
                 injectReader(url);
                 CookieManager.getInstance().flush();
             }
@@ -269,7 +307,9 @@ public final class MainActivity extends ComponentActivity {
 
     private void updateReaderUi(String url) {
         boolean reading = UrlPolicy.isChapter(url);
-        toolbar.setVisibility(reading ? View.GONE : View.VISIBLE);
+        address.setText(url);
+        forwardButton.setEnabled(webView.canGoForward());
+        backButton.setContentDescription(webView.canGoBack() ? "Назад" : "Закрыть читалку");
         if (!reading && fullscreen) {
             fullscreen = false;
             applyFullscreen();
@@ -284,10 +324,11 @@ public final class MainActivity extends ComponentActivity {
                 WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
         if (fullscreen) {
             controller.hide(WindowInsetsCompat.Type.systemBars());
-            progress.setVisibility(View.GONE);
         } else {
             controller.show(WindowInsetsCompat.Type.systemBars());
         }
+        toolbar.setVisibility(fullscreen ? View.GONE : View.VISIBLE);
+        navigation.setVisibility(fullscreen ? View.GONE : View.VISIBLE);
         ViewCompat.requestApplyInsets(root);
         syncFullscreen();
     }
@@ -301,7 +342,7 @@ public final class MainActivity extends ComponentActivity {
     private void showLoadError(String message) {
         errorText.setText(message);
         errorPanel.setVisibility(View.VISIBLE);
-        progress.setVisibility(View.GONE);
+        progress.setVisibility(View.INVISIBLE);
     }
 
     private Button button(String label, Runnable action) {
@@ -322,6 +363,8 @@ public final class MainActivity extends ComponentActivity {
         input.setInputType(android.text.InputType.TYPE_CLASS_TEXT
                 | android.text.InputType.TYPE_TEXT_VARIATION_URI);
         input.setHint("https://remanga.org/…");
+        input.setText(currentUrl);
+        input.selectAll();
         new AlertDialog.Builder(this).setTitle("Открыть ссылку Remanga").setView(input)
                 .setNegativeButton("Отмена", null)
                 .setPositiveButton("Открыть", (dialog, which) -> {

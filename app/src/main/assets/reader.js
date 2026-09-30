@@ -21,6 +21,10 @@
     let scrollFrame = 0;
     let refreshFrame = 0;
     let lastPath = location.pathname;
+    let viewportWidth = window.innerWidth;
+    let layoutObserver = null;
+    let pointer = null;
+    let pendingTap = null;
 
     const styles = `
         [data-rfx-panel] {
@@ -28,35 +32,33 @@
             opacity: 1 !important;
             visibility: visible !important;
             z-index: 999 !important;
-            transition: transform 200ms ease, opacity 160ms ease, visibility 0s !important;
+            transition: transform 320ms cubic-bezier(.22,.61,.36,1), opacity 260ms ease, visibility 0s !important;
             will-change: transform;
+            overflow-anchor: none;
         }
         [data-rfx-panel="top"] { z-index: 1000 !important; }
         [data-rfx-hidden="true"] [data-rfx-panel] {
             opacity: 0 !important;
             pointer-events: none !important;
             visibility: hidden !important;
-            transition: transform 200ms ease, opacity 160ms ease, visibility 0s 200ms !important;
+            transition: transform 320ms cubic-bezier(.22,.61,.36,1), opacity 260ms ease, visibility 0s 320ms !important;
         }
         [data-rfx-hidden="true"] [data-rfx-panel="top"] {
             transform: translate3d(0, calc(-100% - 16px), 0) !important;
         }
         [data-rfx-hidden="true"] [data-rfx-panel="bottom"] {
-            transform: translate3d(0, calc(100% + 16px), 0) !important;
-        }
-        [data-rfx-controls] {
-            flex-wrap: wrap !important;
-            row-gap: 4px !important;
-            padding-bottom: 6px;
+            transform: translate3d(0, calc(100% + 80px), 0) !important;
         }
         #rfx-fullscreen {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            flex: 0 0 44px;
-            width: 44px;
-            height: 44px;
-            min-width: 44px;
+            box-sizing: border-box;
+            flex: 0 0 var(--rfx-button-size, 40px);
+            width: var(--rfx-button-size, 40px);
+            height: var(--rfx-button-size, 40px);
+            min-width: var(--rfx-button-size, 40px);
+            min-height: 0;
             padding: 0;
             border: 0;
             border-radius: 50%;
@@ -65,6 +67,12 @@
             cursor: pointer;
             touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
+        }
+        #rfx-fullscreen[data-rfx-placement="floating"] {
+            position: absolute;
+            right: max(8px, env(safe-area-inset-right));
+            bottom: calc(var(--rfx-bar-height, 56px) + env(safe-area-inset-bottom) + 8px);
+            box-shadow: 0 2px 8px #0005;
         }
         #rfx-fullscreen:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
         #rfx-fullscreen[aria-pressed="true"] { box-shadow: inset 0 0 0 1px currentColor; }
@@ -89,7 +97,8 @@
             document.documentElement.setAttribute('data-rfx-hidden', attribute);
         }
         for (const [panel, originalInert] of panels) {
-            panel.inert = value || originalInert;
+            const nextInert = value || originalInert;
+            if (panel.inert !== nextInert) panel.inert = nextInert;
         }
     }
 
@@ -125,11 +134,11 @@
             direction = 0;
             return;
         }
-        if (Math.abs(change) < 1) return;
+        if (Math.abs(change) < 2) return;
         const nextDirection = Math.sign(change);
         distance = nextDirection === direction ? distance + Math.abs(change) : Math.abs(change);
         direction = nextDirection;
-        if (distance >= (direction > 0 ? 14 : 8)) {
+        if (distance >= (direction > 0 ? 24 : 12)) {
             setHidden(direction > 0);
             distance = 0;
         }
@@ -167,15 +176,14 @@
             window.RemangaNative.postMessage(JSON.stringify({ type: 'toggleFullscreen' }));
             return;
         }
-        // The browser API also lets the local demonstration use the same button.
         try {
             if (document.fullscreenElement) {
                 await document.exitFullscreen();
             } else {
-                await document.documentElement.requestFullscreen();
+                await document.documentElement.requestFullscreen({ navigationUI: 'hide' });
             }
         } catch (error) {
-            button.title = 'Полный экран недоступен. Обновите Android System WebView.';
+            button.title = 'Полный экран недоступен в этом браузере.';
             console.warn('Remanga Reader: fullscreen is unavailable', error);
         }
     }
@@ -184,11 +192,14 @@
         // This is the existing row with chapter, comment, like and bookmark buttons.
         const row = bottom.querySelector('.no-wrap > .flex.flex-nowrap');
         if (controls !== row) {
-            controls?.removeAttribute('data-rfx-controls');
+            layoutObserver?.disconnect();
             controls = row;
             button?.remove();
+            if (row) {
+                layoutObserver?.observe(row);
+                layoutObserver?.observe(row.parentElement);
+            }
         }
-        if (!row || button?.parentElement === row) return;
         if (!button) {
             button = document.createElement('button');
             button.id = 'rfx-fullscreen';
@@ -196,8 +207,78 @@
             button.addEventListener('click', toggleFullscreen);
             updateButton();
         }
-        row.setAttribute('data-rfx-controls', '');
-        row.append(button);
+        placeButton(bottom, row);
+    }
+
+    function placeButton(bottom, row) {
+        const bar = row?.parentElement;
+        const children = row ? [...row.children].filter(child => child !== button) : [];
+        const rowStyle = row && getComputedStyle(row);
+        const gap = parseFloat(rowStyle?.columnGap) || 0;
+        const padding = (parseFloat(rowStyle?.paddingLeft) || 0)
+            + (parseFloat(rowStyle?.paddingRight) || 0);
+        const controlHeight = children.find(child => child.matches('button'))?.offsetHeight || 40;
+        const usedWidth = children.reduce((width, child) => {
+            const style = getComputedStyle(child);
+            return width + Math.max(child.offsetWidth, child.scrollWidth)
+                + (parseFloat(style.marginLeft) || 0) + (parseFloat(style.marginRight) || 0);
+        }, 0);
+        const barHeight = bar?.offsetHeight || 56;
+        const fits = row && row.clientWidth - padding >= usedWidth + gap * children.length + controlHeight + 2;
+        const placement = fits ? 'inline' : 'floating';
+        const size = fits ? controlHeight : barHeight;
+        const parent = fits ? row : bottom;
+        button.setAttribute('data-rfx-placement', placement);
+        button.style.setProperty('--rfx-button-size', size + 'px');
+        button.style.setProperty('--rfx-bar-height', barHeight + 'px');
+        if (button.parentElement !== parent) parent.append(button);
+    }
+
+    function isReadingSurface(target) {
+        return target instanceof Element
+            && target.closest('.reader-container-width, main')
+            && !target.closest('[data-rfx-panel], a, button, input, textarea, select, label, '
+                + '[contenteditable], [role="button"], [role="link"], [role="dialog"], '
+                + '[role="menu"], video, audio, iframe, summary');
+    }
+
+    function onPointerDown(event) {
+        pendingTap = null;
+        if (event.isPrimary === false || event.button !== 0 || !panels.size
+                || !isReadingSurface(event.target) || interactionIsOpen()) {
+            pointer = null;
+            return;
+        }
+        pointer = { id: event.pointerId, x: event.clientX, y: event.clientY, time: performance.now() };
+    }
+
+    function onPointerMove(event) {
+        if (pointer && (pointer.id !== event.pointerId
+                || Math.hypot(event.clientX - pointer.x, event.clientY - pointer.y) > 10)) {
+            pointer = null;
+        }
+    }
+
+    function onPointerUp(event) {
+        onPointerMove(event);
+        if (pointer && performance.now() - pointer.time <= 280) {
+            pendingTap = { target: event.target, time: performance.now() };
+        }
+        pointer = null;
+    }
+
+    function onReadingClick(event) {
+        const tap = pendingTap;
+        pendingTap = null;
+        if (!tap || event.detail !== 1 || event.defaultPrevented
+                || performance.now() - tap.time > 400 || tap.target !== event.target
+                || !isReadingSurface(event.target) || !panels.size
+                || interactionIsOpen() || !window.getSelection()?.isCollapsed) return;
+        // Own only short taps on content; leave links, gestures and text selection to the site.
+        event.preventDefault();
+        event.stopPropagation();
+        setHidden(!hidden);
+        resetScroll();
     }
 
     function releasePanel(panel, originalInert) {
@@ -234,7 +315,7 @@
             attachButton(bottom);
         } else {
             button?.remove();
-            controls?.removeAttribute('data-rfx-controls');
+            layoutObserver?.disconnect();
             controls = null;
         }
         if (!panels.size) {
@@ -255,6 +336,7 @@
         style.id = 'rfx-styles';
         style.textContent = styles;
         document.head.append(style);
+        if (window.ResizeObserver) layoutObserver = new ResizeObserver(scheduleRefresh);
         const observer = new MutationObserver(scheduleRefresh);
         observer.observe(document.body, {
             childList: true,
@@ -264,11 +346,19 @@
         });
         window.addEventListener('scroll', scheduleScroll, { passive: true });
         window.addEventListener('resize', () => {
-            setHidden(false);
+            if (window.innerWidth !== viewportWidth) {
+                viewportWidth = window.innerWidth;
+                setHidden(false);
+            }
             resetScroll();
             scheduleRefresh();
         }, { passive: true });
         window.addEventListener('popstate', scheduleRefresh);
+        document.addEventListener('pointerdown', onPointerDown, { passive: true, capture: true });
+        document.addEventListener('pointermove', onPointerMove, { passive: true, capture: true });
+        document.addEventListener('pointerup', onPointerUp, { passive: true, capture: true });
+        document.addEventListener('pointercancel', () => { pointer = null; pendingTap = null; }, { passive: true });
+        document.addEventListener('click', onReadingClick, true);
         mobileViewport.addEventListener('change', scheduleRefresh);
         document.addEventListener('focusin', () => {
             if (panels.size) {

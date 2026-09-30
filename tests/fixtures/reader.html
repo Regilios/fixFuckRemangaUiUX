@@ -11,9 +11,11 @@
     .fixed { position: fixed; left: 0; right: 0; }
     .top-0 { top: 0; background: #22212a; padding: 8px; }
     .bottom-0 { bottom: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-    .no-wrap { width: 100%; background: #22212a; padding-top: 8px; }
+    .no-wrap { width: 100%; min-height: 56px; background: #22212a; }
     .flex-nowrap { display: flex; justify-content: center; gap: 4px; padding-inline: 8px; }
-    .counters { display: flex; gap: 6px; background: #303038; border-radius: 12px; }
+    .flex-nowrap > button { width: 40px; min-width: 40px; padding: 0; flex-shrink: 0; }
+    .counters { display: flex; gap: 8px; height: 40px; padding-inline: 16px; background: #303038; border-radius: 12px; }
+    .counters button { padding: 0; background: transparent; }
     .fresnel-greaterThanOrEqual-md { display: none; }
     main { padding: 80px 20px 160px; min-height: 5000px; background: repeating-linear-gradient(#17131f 0 650px, #292336 650px 1300px); }
     .demo-actions { display: grid; gap: 12px; padding-block: 20px; }
@@ -45,6 +47,7 @@
     <h1>Проверка чтения</h1>
     <p>Прокрутка вниз скрывает панели. Прокрутка вверх возвращает их.</p>
     <p>Это тестовая страница без содержимого манги.</p>
+    <p>Короткий тап по тексту скрывает и возвращает панели.</p>
     <div class="demo-actions">
       <button id="demo-down">Прокрутить вниз</button>
       <button id="demo-up">Прокрутить вверх</button>
