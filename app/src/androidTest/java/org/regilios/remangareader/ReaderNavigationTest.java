@@ -39,11 +39,15 @@ public final class ReaderNavigationTest {
                 WebView web = findWebView(activity.getWindow().getDecorView());
                 page.set(web);
                 web.stopLoading();
-                web.loadDataWithBaseURL(CHAPTER, PAGE, "text/html", "UTF-8", null);
+                web.loadDataWithBaseURL(CHAPTER, PAGE, "text/html", "UTF-8", CHAPTER);
             });
             WebView web = page.get();
             waitFor(web, "Boolean(document.querySelector('#rfx-fullscreen'))");
-            scenario.onActivity(activity -> assertTrue(findText(activity.getWindow().getDecorView(), "Chrome").isShown()));
+            waitFor(web, "typeof window.RemangaNative?.postMessage === 'function'");
+            scenario.onActivity(activity -> {
+                assertEquals("The fixture must have a trusted chapter URL", CHAPTER, web.getUrl());
+                assertTrue(findText(activity.getWindow().getDecorView(), "Chrome").isShown());
+            });
 
             javascript(web, "window.scrollTo(0,600);true");
             waitFor(web, "window.scrollY === 600");
