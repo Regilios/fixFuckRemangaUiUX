@@ -39,7 +39,7 @@
 
 - Java 17+, Android SDK 36, Gradle 8.13 (wrapper включён).
 - Java + Android WebView; код страницы написан на обычном JavaScript без jQuery.
-- AndroidX Core 1.16.0 и WebKit 1.14.0.
+- AndroidX Activity 1.10.1, Core 1.16.0 и WebKit 1.14.0.
 
 ```sh
 npm ci

@@ -1,7 +1,6 @@
 package org.regilios.remangareader;
 
 import android.annotation.SuppressLint;
-import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
@@ -29,6 +28,8 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.ComponentActivity;
+import androidx.activity.OnBackPressedCallback;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
@@ -47,7 +48,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashSet;
 
-public final class MainActivity extends Activity {
+public final class MainActivity extends ComponentActivity {
     private WebView webView;
     private LinearLayout root;
     private LinearLayout toolbar;
@@ -81,10 +82,12 @@ public final class MainActivity extends Activity {
         }
         createLayout();
         configureWebView();
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
-                    android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, this::handleBack);
-        }
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                handleBack();
+            }
+        });
 
         String requestedUrl = urlFromIntent(getIntent());
         String savedUrl = preferences.getString("last_url", UrlPolicy.FIRST_CHAPTER);
@@ -367,11 +370,6 @@ public final class MainActivity extends Activity {
         } else {
             Toast.makeText(this, "Поделитесь ссылкой с remanga.org", Toast.LENGTH_LONG).show();
         }
-    }
-
-    @Override
-    public void onBackPressed() {
-        handleBack();
     }
 
     private void handleBack() {
