@@ -161,7 +161,7 @@ test('uses the existing row when it fits, otherwise floats above it without wrap
     await reader.resize(320);
     assert.equal(button.dataset.rfxPlacement, 'floating');
     assert.equal(button.parentElement.dataset.rfxPanel, 'bottom');
-    assert.equal(button.style.getPropertyValue('--rfx-button-size'), '56px');
+    assert.equal(button.style.getPropertyValue('--rfx-button-size'), '40px');
     assert.equal(button.style.getPropertyValue('--rfx-bar-height'), '56px');
     await reader.resize(390);
     assert.equal(button.dataset.rfxPlacement, 'inline');
@@ -290,11 +290,16 @@ test('native fullscreen uses confirmed state and query updates do not reveal hid
 
 test('reinjection is idempotent and does not register duplicate native click handlers', async t => {
     const reader = await createReader(t);
+    const mutations = [];
+    const observer = new reader.window.MutationObserver(records => mutations.push(...records));
+    observer.observe(reader.document.querySelector('#rfx-fullscreen'), { attributes: true, childList: true, subtree: true });
     reader.window.eval(script);
     reader.window.eval(script);
     await tick();
     assert.equal(reader.document.querySelectorAll('#rfx-styles').length, 1);
     assert.equal(reader.document.querySelectorAll('#rfx-fullscreen').length, 1);
+    assert.equal(mutations.length, 0);
+    observer.disconnect();
     reader.document.querySelector('#rfx-fullscreen').click();
     assert.equal(reader.messages.filter(message => message.type === 'toggleFullscreen').length, 1);
 });

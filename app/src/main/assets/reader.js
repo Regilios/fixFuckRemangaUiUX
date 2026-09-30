@@ -226,11 +226,14 @@
         const barHeight = bar?.offsetHeight || 56;
         const fits = row && row.clientWidth - padding >= usedWidth + gap * children.length + controlHeight + 2;
         const placement = fits ? 'inline' : 'floating';
-        const size = fits ? controlHeight : barHeight;
+        const size = Math.min(controlHeight, barHeight);
         const parent = fits ? row : bottom;
-        button.setAttribute('data-rfx-placement', placement);
-        button.style.setProperty('--rfx-button-size', size + 'px');
-        button.style.setProperty('--rfx-bar-height', barHeight + 'px');
+        if (button.getAttribute('data-rfx-placement') !== placement) {
+            button.setAttribute('data-rfx-placement', placement);
+        }
+        for (const [property, value] of [['--rfx-button-size', size + 'px'], ['--rfx-bar-height', barHeight + 'px']]) {
+            if (button.style.getPropertyValue(property) !== value) button.style.setProperty(property, value);
+        }
         if (button.parentElement !== parent) parent.append(button);
     }
 
