@@ -4,6 +4,8 @@
 
 **[Скачать APK последней версии](https://github.com/Regilios/fixFuckRemangaUiUX/releases/latest/download/remanga-reader.apk)** · [Все релизы](https://github.com/Regilios/fixFuckRemangaUiUX/releases)
 
+Готовый установочный файл также лежит прямо в корне проекта: [remanga-reader-v1.0.0.apk](remanga-reader-v1.0.0.apk). Это тот же подписанный APK, что и в релизе 1.0.0; его контрольная сумма указана в [SHA256SUMS.txt](SHA256SUMS.txt). Папка `app/` содержит исходный код приложения.
+
 ## Что меняется
 
 - Прокрутка главы вниз плавно скрывает верхнюю панель с главами и профилем и нижнюю панель с кнопками.
