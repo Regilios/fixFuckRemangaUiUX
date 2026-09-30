@@ -6,7 +6,7 @@ local.properties
 *.jks
 *.keystore
 *.apk
-!/remanga-reader-v1.0.0.apk
+!/remanga-reader-v1.1.0.apk
 *.aab
 *.log
 .idea/

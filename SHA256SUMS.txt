@@ -1,1 +1,1 @@
-5b29ac40eeeb58604498bcf7e3fb1cdd3f022c7be07a92b9c91ec8a0c3d42298  remanga-reader-v1.0.0.apk
+bf727bef5c0548bc9b97792d9f2b6a19d3adbd17a6c61ddffedbfbcf5213c43e  remanga-reader-v1.1.0.apk
