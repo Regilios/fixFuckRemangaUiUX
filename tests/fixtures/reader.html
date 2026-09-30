@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Проверка Remanga Reader</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; color: #eee; background: #111115; font: 15px system-ui; }
+    button { border: 0; border-radius: 20px; padding: 10px; background: #303038; color: inherit; min-height: 40px; }
+    .fixed { position: fixed; left: 0; right: 0; }
+    .top-0 { top: 0; background: #22212a; padding: 8px; }
+    .bottom-0 { bottom: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .no-wrap { width: 100%; background: #22212a; padding-top: 8px; }
+    .flex-nowrap { display: flex; justify-content: center; gap: 4px; padding-inline: 8px; }
+    .counters { display: flex; gap: 6px; background: #303038; border-radius: 12px; }
+    .fresnel-greaterThanOrEqual-md { display: none; }
+    main { padding: 80px 20px 160px; min-height: 5000px; background: repeating-linear-gradient(#17131f 0 650px, #292336 650px 1300px); }
+    .demo-actions { display: grid; gap: 12px; padding-block: 20px; }
+    @media (min-width: 768px) { .fresnel-lessThan-md { display: none; } .fresnel-greaterThanOrEqual-md { display: block; } }
+  </style>
+</head>
+<body>
+  <!-- Structural fixture based on the public mobile DOM inspected on 2026-10-01. -->
+  <div class="fresnel-container fresnel-lessThan-md">
+    <div class="fixed inset-x-0 top-0 z-[1000]" style="transform:translate3d(0,0,0)">
+      <button>Глава 0</button> <button>Профиль</button>
+    </div>
+    <div class="fixed inset-x-0 top-auto bottom-0 z-[-1]" style="transform:translate3d(0,0,0)">
+      <button aria-haspopup="menu" aria-expanded="false">1/6</button>
+      <div class="no-wrap flex">
+        <div class="mx-auto flex flex-nowrap">
+          <button aria-label="Чтение">▷</button>
+          <button aria-label="Меню" aria-expanded="false">⋮</button>
+          <div class="counters"><button>☷ 10</button><button>☏ 12</button><button>♡ 880</button></div>
+          <button aria-label="Закладка">♧</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="fresnel-container fresnel-greaterThanOrEqual-md">
+    <header class="fixed top-0">Панель компьютера</header>
+  </div>
+  <main>
+    <h1>Проверка чтения</h1>
+    <p>Прокрутка вниз скрывает панели. Прокрутка вверх возвращает их.</p>
+    <p>Это тестовая страница без содержимого манги.</p>
+    <div class="demo-actions">
+      <button id="demo-down">Прокрутить вниз</button>
+      <button id="demo-up">Прокрутить вверх</button>
+    </div>
+    <p style="margin-top:700px">Середина страницы</p>
+    <button id="demo-back">Немного вверх</button>
+  </main>
+  <script src="/reader.js"></script>
+  <script>
+    document.querySelector('#demo-down').onclick = () => window.scrollBy(0, 500);
+    document.querySelector('#demo-up').onclick = () => window.scrollBy(0, -80);
+    document.querySelector('#demo-back').onclick = () => window.scrollBy(0, -80);
+  </script>
+</body>
+</html>
